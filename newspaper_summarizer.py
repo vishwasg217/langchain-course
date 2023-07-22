@@ -27,9 +27,6 @@ try:
         article.download()
         article.parse()
 
-        # print(f"Title: {article.title}")
-        # print(f"Text: {article.text}")
-
         article_title = article.title
         article_text = article.text
 
