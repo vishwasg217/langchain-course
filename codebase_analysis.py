@@ -1,7 +1,8 @@
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import DeepLake
 from langchain.text_splitter import CharacterTextSplitter
-from langchain import OpenAI
+from langchain.chat_models import ChatOpenAI
+from langchain.chains import ConversationalRetrievalChain
 from langchain.document_loaders import TextLoader
 from langchain import PromptTemplate
 from dotenv import dotenv_values
@@ -10,6 +11,8 @@ import os
 config = dotenv_values(".env")
 OPEN_AI_API = config["OPEN_AI_API"]
 ACTIVELOOP_TOKEN = config["ACTIVELOOP_TOKEN"]
+
+model = ChatOpenAI(openai_api_key=OPEN_AI_API, model_name="gpt-3.5-turbo")
 
 # disallowed_special=() is required to avoid Exception: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte from tiktoken for some repositories
 embeddings = OpenAIEmbeddings(openai_api_key=OPEN_AI_API, disallowed_special=())    
@@ -41,9 +44,85 @@ def split_text(docs: list) -> list:
     texts = text_splitter.split_documents(docs)
     return texts
 
+def deeplake_database(activeloop_id: str, dataset_name: str, splitted_texts: list):
+    """
+    Creating a new database and adding the splitted texts to the database.
+    """
+    dataset_path = f"hub://{activeloop_id}/{dataset_name}"
+    db = DeepLake(dataset_path=dataset_path, embedding_function=embeddings)
+    print('Accessed database at {}'.format(dataset_path))
+    db.add_documents(splitted_texts)
+    return db
+
+
+def search(db):
+    """
+    The `as_retriever` method is used in the Langchain library to convert a document search object into a retriever. This method is useful when you want to use the document search object in a retrieval pipeline.
+
+    The `search_kwargs` is a parameter used in the Langchain library when performing a search using a retriever. It is a dictionary that contains the arguments for the search method.
+    """
+    retriever = db.as_retriever()
+    retriever.search_kwargs['distance_metric'] = 'cos'
+    retriever.search_kwargs["fetch_k"] = 100
+    retriever.search_kwargs["maximal_marginal_relevance"] = True
+    retriever.search_kwargs["k"] = 10
+    return retriever
+
+def conversation(retriever):
+    """
+    The `ConversationalRetrievalChain` is a part of the Langchain library that allows for a conversational interaction with the AI. By default, the AI's responses are prefixed with "AI", and the human's inputs are prefixed with "Human". However, these prefixes can be customized.
+
+    Here's an example of how to use the ConversationalRetrievalChain:
+
+    
+    >>> from langchain.conversation import ConversationChain
+    >>> from langchain.memory import ConversationBufferMemory
+
+    Initialize the ConversationChain
+    conversation = ConversationChain(
+        llm=llm, verbose=True, memory=ConversationBufferMemory()
+    )
+
+    Predict a response
+    >>> response = conversation.predict(input="Hi there!")
+    >>> print(response)  # "Hi there! It's nice to meet you. How can I help you today?"
+    
+    """
+
+    qa = ConversationalRetrievalChain.from_llm(model, retriever = retriever)
+    chat_history = []
+    print("Enter your query (type exit to exit the program): ")
+    print("---------------------------------------------------")
+    query = ""
+    while(query!="exit"):
+        query = input("Human: ")
+        print("******")
+        if query == "exit":
+            break
+
+        response = qa.predict(input=query)
+        print("AI: ", response)
+        chat_history.append(query)
+        chat_history.append(response)
+
+
+
+
+        
+
 
 docs = load_text_from_dir(CODEBASE_PATH)
 texts = split_text(docs)
+db = deeplake_database("vishwasg217", "twitter_algo_codebase", texts)
+retriever = search(db)
+conversation(retriever)
+
+
+
+    
+
+
+
     
 
 
