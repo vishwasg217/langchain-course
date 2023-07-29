@@ -51,7 +51,7 @@ def deeplake_database(activeloop_id: str, dataset_name: str, splitted_texts: lis
     dataset_path = f"hub://{activeloop_id}/{dataset_name}"
     db = DeepLake(dataset_path=dataset_path, embedding_function=embeddings)
     print('Accessed database at {}'.format(dataset_path))
-    db.add_documents(splitted_texts)
+    # db.add_documents(splitted_texts)
     return db
 
 
@@ -71,22 +71,6 @@ def search(db):
 def conversation(retriever):
     """
     The `ConversationalRetrievalChain` is a part of the Langchain library that allows for a conversational interaction with the AI. By default, the AI's responses are prefixed with "AI", and the human's inputs are prefixed with "Human". However, these prefixes can be customized.
-
-    Here's an example of how to use the ConversationalRetrievalChain:
-
-    
-    >>> from langchain.conversation import ConversationChain
-    >>> from langchain.memory import ConversationBufferMemory
-
-    Initialize the ConversationChain
-    conversation = ConversationChain(
-        llm=llm, verbose=True, memory=ConversationBufferMemory()
-    )
-
-    Predict a response
-    >>> response = conversation.predict(input="Hi there!")
-    >>> print(response)  # "Hi there! It's nice to meet you. How can I help you today?"
-    
     """
 
     qa = ConversationalRetrievalChain.from_llm(model, retriever = retriever)
@@ -100,22 +84,33 @@ def conversation(retriever):
         if query == "exit":
             break
 
-        response = qa.predict(input=query)
-        print("AI: ", response)
-        chat_history.append(query)
-        chat_history.append(response)
+        result = qa({"question": query, "chat_history": chat_history})
+        chat_history.append((query, result["answer"]))
+        print(f"AI: {result['answer']} \n")
 
 
 
 
         
+if __name__ == "__main__":
 
+    use_my_database = False
 
-docs = load_text_from_dir(CODEBASE_PATH)
-texts = split_text(docs)
-db = deeplake_database("vishwasg217", "twitter_algo_codebase", texts)
-retriever = search(db)
-conversation(retriever)
+    if use_my_database:
+        docs = load_text_from_dir(CODEBASE_PATH)
+        texts = split_text(docs)
+        db = deeplake_database("vishwasg217", "twitter_algo_codebase", texts)
+        retriever = search(db)
+        conversation(retriever)
+    else:
+        db = DeepLake(
+            dataset_path="hub://davitbun/twitter-algorithm",
+            read_only=True,
+            embedding_function=embeddings,
+        )
+
+        retriever = search(db)
+        conversation(retriever)
 
 
 
