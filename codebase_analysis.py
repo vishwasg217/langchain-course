@@ -5,6 +5,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import ConversationalRetrievalChain
 from langchain.document_loaders import TextLoader
 from langchain import PromptTemplate
+import streamlit as st
+from streamlit_chat import message
 from dotenv import dotenv_values
 import os
 
@@ -51,7 +53,7 @@ def deeplake_database(activeloop_id: str, dataset_name: str, splitted_texts: lis
     dataset_path = f"hub://{activeloop_id}/{dataset_name}"
     db = DeepLake(dataset_path=dataset_path, embedding_function=embeddings)
     print('Accessed database at {}'.format(dataset_path))
-    # db.add_documents(splitted_texts)
+    db.add_documents(splitted_texts)
     return db
 
 
@@ -71,6 +73,7 @@ def search(db):
 def conversation(retriever):
     """
     The `ConversationalRetrievalChain` is a part of the Langchain library that allows for a conversational interaction with the AI. By default, the AI's responses are prefixed with "AI", and the human's inputs are prefixed with "Human". However, these prefixes can be customized.
+    Langchain QA: https://github.com/sophiamyang/tutorials-LangChain/blob/main/LangChain_QA.ipynb
     """
 
     qa = ConversationalRetrievalChain.from_llm(model, retriever = retriever)
