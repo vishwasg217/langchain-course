@@ -24,6 +24,7 @@ def process_text(path: str):
 
     # it is the same as - docs = loader.load(), text = text_splitter.split_documents(docs)
     splitted_text = loader.load_and_split(text_splitter=text_splitter)
+    print("Number of sentences: ", len(splitted_text))
     return splitted_text
 
 def database(splitted_text):
@@ -33,15 +34,16 @@ def database(splitted_text):
 
 def conversation(db: Chroma):
     retriever = db.as_retriever()
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(llm=model, retriever=retriever, memory=memory)
+    # memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+    conversation_chain = ConversationalRetrievalChain.from_llm(llm=model, retriever=retriever)
+
     return conversation_chain
 
 def handle_query(query: str):
-    result = st.session_state.conversation({"question": query})
-    st.session_state.chat_history.append((query, result["answer"]))
-    messages = st.session_state.get('chat_history', [])
-    for i, msg in enumerate(messages):
+    result = st.session_state.conversation({"question": query, "chat_history": chat_history})
+    chat_history.append((query, result["answer"]))
+    # messages = st.session_state.get('chat_history', [])
+    for i, msg in enumerate(chat_history):
         message(message=msg[0], is_user=True)
         message(message=msg[1], is_user=False)
     
@@ -51,8 +53,6 @@ if __name__ == "__main__":
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
 
     st.title("PDF Q&A")
     splitted_text = process_text("example.pdf")
@@ -60,11 +60,11 @@ if __name__ == "__main__":
 
     st.session_state.conversation = conversation(db)
 
-    query = ""
+    query = st.sidebar.text_input("Ask question")
     
     while(query!="exit"):
-        query = st.sidebar.text_input("Ask question")
-        handle_query(query)
+        if query:
+            handle_query(query)
         
 
 
