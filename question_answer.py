@@ -44,8 +44,10 @@ def handle_query(query: str):
     st.session_state.chat_history.append((query, result["answer"]))
     messages = st.session_state.get('chat_history', [])
     for i, msg in enumerate(messages):
-        message(message=msg[0], is_user=True, key=str(i)+"_user")
-        message(message=msg[1], is_user=False, key=str(i)+"_ai")
+        # message(message=msg[0], is_user=True, key=str(i)+"_user")
+        # message(message=msg[1], is_user=False, key=str(i)+"_ai")
+        st.chat_message("user").write(msg[0])
+        st.chat_message("assistant").write(msg[1])
     
 
 if __name__ == "__main__":
@@ -71,9 +73,7 @@ if __name__ == "__main__":
         st.session_state.conversation = conversation(db)
 
     if st.session_state.process_text:
-        query = st.sidebar.text_input("Ask question")
-        st.write("Query: ", query)
-        
+        query = st.chat_input("Ask a question")
         if query:
             handle_query(query)
 
