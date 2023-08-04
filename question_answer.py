@@ -41,11 +41,11 @@ def conversation(db: Chroma):
 
 def handle_query(query: str):
     result = st.session_state.conversation({"question": query, "chat_history": chat_history})
-    chat_history.append((query, result["answer"]))
-    # messages = st.session_state.get('chat_history', [])
-    for i, msg in enumerate(chat_history):
-        message(message=msg[0], is_user=True)
-        message(message=msg[1], is_user=False)
+    st.session_state.chat_history.append((query, result["answer"]))
+    messages = st.session_state.get('chat_history', [])
+    for i, msg in enumerate(messages):
+        message(message=msg[0], is_user=True, key=str(i)+"_user")
+        message(message=msg[1], is_user=False, key=str(i)+"_ai")
     
 
 if __name__ == "__main__":
@@ -53,18 +53,31 @@ if __name__ == "__main__":
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
 
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
 
     st.title("PDF Q&A")
-    splitted_text = process_text("example.pdf")
-    db = database(splitted_text)
 
-    st.session_state.conversation = conversation(db)
+    if "process_text" not in st.session_state:
+        st.session_state.process_text = False
 
-    query = st.sidebar.text_input("Ask question")
-    
-    while(query!="exit"):
+
+    if st.sidebar.button("Process text"):
+        st.session_state.process_text = True
+        splitted_text = process_text("example.pdf")
+        db = database(splitted_text)
+
+        st.session_state.conversation = conversation(db)
+
+    if st.session_state.process_text:
+        query = st.sidebar.text_input("Ask question")
+        st.write("Query: ", query)
+        
         if query:
             handle_query(query)
+
+        
         
 
 
