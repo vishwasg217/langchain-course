@@ -8,7 +8,6 @@ from langchain.embeddings import OpenAIEmbeddings
 
 from dotenv import dotenv_values
 import streamlit as st
-from streamlit_chat import message
 
 
 config = dotenv_values(".env")
@@ -16,6 +15,9 @@ OPEN_AI_API = config["OPEN_AI_API"]
 ACTIVELOOP_TOKEN = config["ACTIVELOOP_TOKEN"]
 
 model = ChatOpenAI(openai_api_key=OPEN_AI_API, model_name="gpt-3.5-turbo")
+st.session_state.memory = ConversationBufferMemory(memory_key="chat_history",return_messages=True)
+
+
 chat_history = []
 
 def process_text(path: str):
@@ -33,38 +35,26 @@ def database(splitted_text):
     return db
 
 def conversation(db: Chroma):
-    retriever = db.as_retriever()
-    memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(llm=model, retriever=retriever, memory=memory)
-    return conversation_chain
+    
+    return 
 
 def handle_query(query: str):
-    result = st.session_state.conversation({"question": query, "chat_history": chat_history})
-    st.session_state.chat_history.append((query, result["answer"]))
-    messages = st.session_state.get('chat_history', [])
-    for i, msg in enumerate(messages):
-        # message(message=msg[0], is_user=True, key=str(i)+"_user")
-        # message(message=msg[1], is_user=False, key=str(i)+"_ai")
-        st.chat_message("user").write(msg[0])
-        st.chat_message("assistant").write(msg[1])
-
-def handle_query_2(query: str):
     result = st.session_state.conversation({"question": query})
-    st.session_state.chat_history.append((query, result["answer"]))
-    messages = st.session_state.get('chat_history', [])
-    for i, msg in enumerate(messages):
-        # message(message=msg[0], is_user=True, key=str(i)+"_user")
-        # message(message=msg[1], is_user=False, key=str(i)+"_ai")
-        st.chat_message("user").write(msg[0])
-        st.chat_message("assistant").write(msg[1])    
+    history = result['chat_history']
+    for i, msg in enumerate(history):
+        if i%2 == 0:
+            st.chat_message("user").write(msg.content)
+        else:
+            st.chat_message("assistant").write(msg.content)
 
 if __name__ == "__main__":
 
+    if "memory" not in st.session_state:
+        st.session_state.memory = None
+
+
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
-
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
 
 
     st.title("PDF Q&A")
@@ -78,8 +68,11 @@ if __name__ == "__main__":
         with st.spinner("Processing text..."):
             splitted_text = process_text("example.pdf")
             db = database(splitted_text)
+            # conversation(db)
+            retriever = db.as_retriever()
+            st.session_state.memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
+            st.session_state.conversation = ConversationalRetrievalChain.from_llm(llm=model, retriever=retriever, memory=st.session_state.memory)
 
-            st.session_state.conversation = conversation(db)
 
     if st.session_state.process_text:
         query = st.chat_input("Ask a question")
